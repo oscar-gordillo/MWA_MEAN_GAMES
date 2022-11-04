@@ -1,16 +1,28 @@
 const express = require('express')
 const app = express()
+require("dotenv").config();
+require("./api/data/dbconnection.js").open();
 const path=require("path")
-const port = 3000
+
+const routes= require("./api/routes");
+
+app.use(express.json());
+app.use(express.urlencoded({extended: true}));
 
 app.use(function(req,res,next){
     console.log(req.method,req.url);
     next();
 })
 
-app.use(express.static(path.join(__dirname,"public")))
+app.use("/api", routes);
 
-const server=app.listen(port, () => {
+app.use(express.static(path.join(__dirname,"public")));
+
+
+
+   
+
+const server=app.listen(process.env.PORT, () => {
     console.log('Example app listening on port '+server.address().port)
   })
 
