@@ -1,82 +1,104 @@
-const gamesData= require("../data/games.json");
-const dbConnection= require("../data/dbconnection");
-const ObjectId= require("mongodb").ObjectId;
+//const gamesData= require("../data/games.json");
+//const dbConnection = require("../data/dbconnection");
+const mongoose = require("mongoose");
+//const ObjectId = require("mongodb").ObjectId;
 
-module.exports.getAll= function(req, res) {
+const Game = mongoose.model(process.env.GAME_MODEL);
 
-    const db= dbConnection.get();
+module.exports.getAll = function (req, res) {
 
-    const gameCollection= db.collection("games");
-    let offset= 0;
-    let count= 4;
+    //const db= dbConnection.get();
+
+    //const gameCollection= db.collection("games");
+    let offset = parseFloat(process.env.DEFAULT_FIND_OFFSET, 10);
+    let count = parseFloat(process.env.DEFAULT_FIND_COUNT, 10);
+    const maxCount = parseInt(process.env.DEFAULT_MAX_FIND_LIMIT, 10);
     if (req.query && req.query.offset) {
-        offset= parseInt(req.query.offset, 10);
+        offset = parseInt(req.query.offset, 10);
     }
     if (req.query && req.query.count) {
-        count= parseInt(req.query.count, 10);
-        if (count>7) {
-            count=7;
-        }
+        count = parseInt(req.query.count, 10);
     }
-    gameCollection.find().skip(offset).limit(count).toArray(function(err,games) {
-        console.log("Found games", games);
-        res.status(200).json(games);
-    });
-
-    
-};
-
-module.exports.getOne= function(req, res) {
-    const db= dbConnection.get();
-    const gamesCollection= db.collection("games");
-    const gameId= req.params.gameId;
-    gamesCollection.findOne({_id : ObjectId(gameId)}, function(err,game) {
-        console.log("Found game", game);
-        res.status(200).json(game);
-        });
-    }
-
-    module.exports.deleteOne= function(req, res) {
-        const db= dbConnection.get();
-        const gamesCollection= db.collection("games");
-        const gameId= req.params.gameId;
-        gamesCollection.deleteOne({_id : ObjectId(gameId)}, function(err,deletedCount) {
-            console.log("deleted game", deletedCount);
-            res.status(200).json(deletedCount);
-            });
-        }
-
-    module.exports.addOne= function(req, res) {
-        const db= dbConnection.get();
-        const gamesCollection= db.collection("games");
-        let newGame= {};
-        if (req.body && req.body.title&& req.body.price) {
-            newGame.title= req.body.title;
-            newGame.price= parseFloat(req.body.price);
-            let minPlayers=req.body.minPlayers;
-            let minAge= req.body.minAge;
-            newGame.minPlayers=minPlayers;
-            newGame.minAge=minAge;
-            if (minPlayers<1 || minPlayers > 11) {
-                res.status(400).send('min players must be between 1 and 11');
-                return;
-            }
-            if (minAge<6 || minAge > 99) {
-                res.status(400).send('min age must be between 6 and 99');
-                return;
-            }
-            gamesCollection.insertOne(newGame, function(err, insertedId) {
-                if (err) {
-                    res.status(500).json({error: err});
-                } else {
-                    console.log(response);
-                    res.status(201).json(insertedId);
-                }
-        });
-
-    }else{
-        res.status(400).send('title and price are required');
+    if (isNaN(offset) || isNaN(count)) {
+        res.status(400).json({ "message": "QueryString Offset and Count should be numbers" });
         return;
     }
-}        
-    
+    if (count > maxCount) {
+        res.status(400).json({ "message": "Cannot exceed count of " + maxCount });
+        return;
+    }
+    /*gameCollection.find().skip(offset).limit(count).toArray(function(err,games) {
+        console.log("Found games", games);
+        res.status(200).json(games);
+    });*/
+    Game.find().skip(offset).limit(count).exec(function (err, games) {
+        if (err) {
+            console.log("Error finding games");
+            res.status(500).json(err);
+        } else {
+            console.log("Found games", games.length);
+            res.status(200).json(games);
+        }
+    });
+
+
+};
+
+module.exports.getOne = function (req, res) {
+    const gameId = req.params.gameId;
+    Game.findById(gameId).exec(function (err, game) {
+        const response = {
+            status: 200,
+            message: game
+        };
+        if (err) {
+            console.log("Error finding game");
+            response.status = 500;
+            response.message = err;
+        } else if (!game) {
+            console.log("Game id not found");
+            response.status = 404;
+            response.message = { "message": "Game ID not found" };
+        }
+        res.status(response.status).json(response.message);
+    });
+}
+
+module.exports.deleteOne = function (req, res) {
+    const gameId = req.params.gameId;
+    Game.findByIdAndDelete(gameId).exec(function(err,deletedGame){
+        const response = {
+            status: 200,
+            message: deletedGame
+        };
+        if (err) {
+            console.log("Error deleting game");
+            response.status = 500;
+            response.message = err;
+        } else if (!deletedGame) {
+            console.log("Game id not found");
+            response.status = 404;
+            response.message = { "message": "Game ID not found" };
+        }
+        res.status(response.status).json(response.message);
+    });    
+}
+
+module.exports.addOne = function (req, res) {
+    console.log("Game AddOne request");
+    const newGame = {
+        title: req.body.title, year: req.body.year, rate: req.body.rate, price: req.body.price,
+        minPlayers: req.body.minPlayers, maxPlayers: req.body.maxPlayers,
+        publisher: req.body.publisher, reviews: [], minAge: req.body.minAge,
+        designers: req.body.designers
+    };
+    Game.create(newGame, function (err, game) {
+        const response = { status: 201, message: game };
+        if (err) {
+            console.log("Error creating game");
+            response.status = 500;
+            response.message = err;
+        }
+        res.status(response.status).json(response.message);
+    });
+}

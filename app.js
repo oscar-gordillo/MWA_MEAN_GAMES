@@ -1,7 +1,8 @@
 const express = require('express')
 const app = express()
 require("dotenv").config();
-require("./api/data/dbconnection.js").open();
+//require("./api/data/dbconnection.js").open();
+require("./api/data/db.js");
 const path=require("path")
 
 const routes= require("./api/routes");
