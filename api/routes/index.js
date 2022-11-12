@@ -3,9 +3,12 @@ const router= express.Router();
 const gamesController= require("../controllers/games.controllers");
 const publisherController= require("../controllers/publisher.controllers");
 const reviewsController= require("../controllers/reviews.controllers");
+const usersController= require("../controllers/users.controllers");
 
 
 router.route("/games").get(gamesController.getAll).post(gamesController.addOne);
+
+router.route("/users").post(usersController.addOne);
 
 router.route("/games/:gameId/reviews").get(reviewsController.getAll);
 

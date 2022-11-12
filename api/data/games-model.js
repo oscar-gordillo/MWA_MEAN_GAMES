@@ -7,7 +7,11 @@ const publisherSchema= new mongoose.Schema({
     },
     country: String,
     established: Number, //Not a date since we only have year
-    location: String
+    //location: String
+    location: {coordinates: {
+        type: [Number],
+        index: "2dsphere"
+    }}
     });
 
     const reviewSchema= new mongoose.Schema({

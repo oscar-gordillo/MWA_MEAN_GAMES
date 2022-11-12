@@ -5,6 +5,38 @@ const mongoose = require("mongoose");
 
 const Game = mongoose.model(process.env.GAME_MODEL);
 
+function _runGeoQuery(req,res, offset,count){
+    const lng=parseFloat(req.query.lng);
+    const lat=parseFloat(req.query.lat);
+    const point= {type:"Point",coordinates: [lng,lat]}; //Stores lng then lat
+
+    let minDistance=0;
+    if (req.query.minDistance) {
+        minDistance=req.query.minDistance;
+    }
+    let maxDistance=10000;
+    if (req.query.maxDistance) {
+        maxDistance=req.query.maxDistance;
+    }
+
+    const query = {"publisher.location.coordinates":{
+        $near: {
+            $geometry: point,
+            $maxDistance: maxDistance,
+            $minDistance: minDistance
+        }
+    }};
+    Game.find(query).skip(offset).limit(count).exec(function (err, games) {
+        if (err) {
+            console.log("Error finding games");
+            res.status(500).json(err);
+        } else {
+            console.log("Found games", games.length);
+            res.status(200).json(games);
+        }
+    });
+}
+
 module.exports.getAll = function (req, res) {
 
     //const db= dbConnection.get();
@@ -13,6 +45,8 @@ module.exports.getAll = function (req, res) {
     let offset = parseFloat(process.env.DEFAULT_FIND_OFFSET, 10);
     let count = parseFloat(process.env.DEFAULT_FIND_COUNT, 10);
     const maxCount = parseInt(process.env.DEFAULT_MAX_FIND_LIMIT, 10);
+
+
     if (req.query && req.query.offset) {
         offset = parseInt(req.query.offset, 10);
     }
@@ -31,7 +65,42 @@ module.exports.getAll = function (req, res) {
         console.log("Found games", games);
         res.status(200).json(games);
     });*/
-    Game.find().skip(offset).limit(count).exec(function (err, games) {
+
+    let query={}//another way
+
+    if(req.query && req.query.lat && req.query.lng){
+        //_runGeoQuery(req,res, offset,count); //buildquery here
+        console.log('geosearch');
+
+        const lng=parseFloat(req.query.lng);
+        const lat=parseFloat(req.query.lat);
+        const point= {type:"Point",coordinates: [lng,lat]}; //Stores lng then lat
+
+        let minDistance=0;
+        if (req.query.minDistance) {
+            minDistance=req.query.minDistance;
+        }
+        let maxDistance=1000000;
+        if (req.query.maxDistance) {
+            maxDistance=req.query.maxDistance;
+        }
+
+        query = {"publisher.location.coordinates":{
+                $near: {
+                    $geometry: point,
+                    $maxDistance: maxDistance,
+                    $minDistance: minDistance
+                }
+            }
+        };
+
+//return ; // comment this out
+        
+    }
+
+    console.log(query);
+
+    Game.find(query).skip(offset).limit(count).exec(function (err, games) {
         if (err) {
             console.log("Error finding games");
             res.status(500).json(err);
